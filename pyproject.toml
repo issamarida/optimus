@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "meeting-intel"
-version = "0.2.0"
+version = "0.3.0"
 description = "Leakage-safe meeting intelligence: discussion-category classification, client sentiment, summarization, and evidence-grounded coaching."
 readme = "README.md"
 requires-python = ">=3.10"

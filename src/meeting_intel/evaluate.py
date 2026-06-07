@@ -1,19 +1,10 @@
-"""Evaluation — metrics chosen to match each objective.
-
-- Category (imbalanced multiclass): macro-F1 + confusion + majority baseline.
-- Negative-interaction detection: precision / recall / PR-AUC with a cost-based
-  threshold picked on validation (a missed blow-up costs more than a false alarm).
-- Sentiment: agreement on a hand-labelled domain sample (see sentiment module).
-- Summarization: ROUGE against reference summaries when available. ROUGE measures
-  lexical overlap only; treat it as a proxy, not proof of usefulness.
-
-The test set is opened exactly once and reported as-is.
-"""
 from __future__ import annotations
 
 import numpy as np
 from sklearn.metrics import (average_precision_score, classification_report,
                              confusion_matrix, f1_score)
+
+from . import config
 
 
 def evaluate_category(y_true, y_pred, labels=None) -> dict:
@@ -26,12 +17,13 @@ def evaluate_category(y_true, y_pred, labels=None) -> dict:
     }
 
 
-def choose_threshold_by_cost(scores, y_true, cost_fn: float = 5.0, cost_fp: float = 1.0) -> float:
+def choose_threshold_by_cost(scores, y_true, cfg: config.DetectionConfig = config.DetectionConfig()) -> float:
     scores, y = np.asarray(scores), np.asarray(y_true).astype(int)
+    grid = np.linspace(0.05, 0.95, 91)
     best_t, best_cost = 0.5, float("inf")
-    for t in np.linspace(0.05, 0.95, 91):
+    for t in grid:
         pred = (scores >= t).astype(int)
-        cost = cost_fn * int(((pred == 0) & (y == 1)).sum()) + cost_fp * int(((pred == 1) & (y == 0)).sum())
+        cost = cfg.cost_fn * int(((pred == 0) & (y == 1)).sum()) + cfg.cost_fp * int(((pred == 1) & (y == 0)).sum())
         if cost < best_cost:
             best_cost, best_t = cost, round(float(t), 3)
     return best_t
@@ -53,15 +45,15 @@ def evaluate_detection(scores, y_true, threshold) -> dict:
 
 
 def evaluate_summaries(predicted: list[str], references: list[str]) -> dict:
-    """ROUGE-1/2/L F-measures. Requires `pip install rouge-score`."""
     try:
         from rouge_score import rouge_scorer
     except ImportError:
         return {"error": "install rouge-score to evaluate summaries"}
     scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2", "rougeL"], use_stemmer=True)
-    agg = {k: [] for k in ("rouge1", "rouge2", "rougeL")}
+    keys = ("rouge1", "rouge2", "rougeL")
+    scores = {k: [] for k in keys}
     for pred, ref in zip(predicted, references):
-        s = scorer.score(ref, pred)
-        for k in agg:
-            agg[k].append(s[k].fmeasure)
-    return {k: round(float(np.mean(v)), 3) for k, v in agg.items()}
+        result = scorer.score(ref, pred)
+        for k in keys:
+            scores[k].append(result[k].fmeasure)
+    return {k: round(float(np.mean(v)), 3) for k, v in scores.items()}

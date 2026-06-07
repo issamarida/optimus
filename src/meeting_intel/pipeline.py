@@ -1,16 +1,12 @@
-"""Per-meeting orchestration: combine category, sentiment, summary, coaching into
-one analysis object. A fitted ``CategoryClassifier`` is required (it must have been
-trained on a separate train split); sentiment/summary/coaching are stateless given
-their backends.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .category import CategoryClassifier
+from . import config
 from .coaching import CoachingReport, coach_meeting
-from .schema import Meeting, ROLE_CLIENT
-from .sentiment import SentimentScorer
+from .features import build_feature_frame
+from .schema import Meeting
+from .sentiment import SentimentScorer, aligned_negative_share
 from .summarize import MeetingSummary, summarize_meeting
 
 
@@ -34,19 +30,17 @@ class MeetingAnalysis:
         }
 
 
-def analyze_meeting(meeting: Meeting, category_model: CategoryClassifier,
-                    scorer: SentimentScorer | None = None, llm=None,
-                    negative_threshold: float = 0.4) -> MeetingAnalysis:
-    scorer = scorer or SentimentScorer(backend="lexicon")
-    category = category_model.predict([meeting.full_text])[0]
-    client_lines = [u.text for u in meeting.utterances if u.role == ROLE_CLIENT]
-    sentiments = scorer.predict(client_lines) if client_lines else []
-    neg_share = sum(s == "negative" for s in sentiments) / len(sentiments) if sentiments else 0.0
+def analyze_meeting(meeting: Meeting, category_pipeline, scorer: SentimentScorer | None = None,
+                    llm=None, cfg: config.DetectionConfig = config.DetectionConfig()) -> MeetingAnalysis:
+    scorer = scorer or SentimentScorer()
+    frame = build_feature_frame([meeting])
+    category = category_pipeline.predict(frame)[0]
+    neg_share = float(aligned_negative_share(frame, scorer)[0])
     return MeetingAnalysis(
         meeting_id=meeting.meeting_id,
         category=category,
         client_negative_share=neg_share,
-        flag_negative_interaction=neg_share >= negative_threshold,
+        flag_negative_interaction=neg_share >= cfg.negative_threshold,
         summary=summarize_meeting(meeting, llm=llm),
         coaching=coach_meeting(meeting, scorer=scorer, llm=llm),
     )

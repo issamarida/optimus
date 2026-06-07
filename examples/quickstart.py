@@ -1,19 +1,12 @@
-"""Minimal programmatic example. Run: python examples/quickstart.py
+from meeting_intel import analyze_meeting, build_feature_frame, fit_category, load_transcripts
+from meeting_intel.config import MEETING_OBJ
+from meeting_intel.data import grouped_train_test_split
 
-Shows the intended usage: train the category model on a TRAIN split, then analyse
-held-out meetings. Swap load_transcripts to real data and pass llm=get_llm("auto")
-for abstractive summaries + LLM-phrased coaching.
-"""
-from meeting_intel import CategoryClassifier, analyze_meeting, load_transcripts
-from meeting_intel.data import grouped_train_test_split, meetings_to_frame
+frame = build_feature_frame(load_transcripts("synthetic", n_meetings=200, seed=7))
+train, test = grouped_train_test_split(frame, test_size=0.25, seed=7)
+model = fit_category(train)
 
-meetings = load_transcripts("synthetic", n_meetings=200, seed=7)
-df = meetings_to_frame(meetings)
-train, test = grouped_train_test_split(df, test_size=0.25, seed=7)
-
-model = CategoryClassifier().fit(train["full_text"], train["_category"])
-
-analysis = analyze_meeting(test["_meeting_obj"].iloc[0], model)
+analysis = analyze_meeting(test[MEETING_OBJ].iloc[0], model)
 print("category:", analysis.category)
 print("negative interaction flagged:", analysis.flag_negative_interaction)
 print("summary:", analysis.summary.summary)
