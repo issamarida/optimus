@@ -1,4 +1,4 @@
-Meeting-transcript NLP on the AMI Meeting Corpus (manual gold release, CC BY 4.0)
+This version on github does not contain any sensitive data from Optimiza in fact this version has been trained on a meeting-transcript NLP by the AMI Meeting Corpus (manual gold release, CC BY 4.0)
 
 ```
 segments: 90,142   classes: 15   split: grouped by series, ~70k train / ~20k test
