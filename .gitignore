@@ -13,6 +13,7 @@ env/
 
 # Data / artifacts (keep large corpora and trained models out of git)
 data/
+artifacts/
 *.joblib
 *.pkl
 *.ckpt

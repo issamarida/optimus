@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 
 from . import config
@@ -9,14 +8,6 @@ from .sentiment import SentimentScorer
 
 ACK_TOKENS = ("understand", "sorry", "apolog", "address", "fix", "right away",
               "good question", "let me", "we'll sort", "i hear you")
-
-LLM_SYSTEM = (
-    "You are a sales-coaching assistant. You are given specific transcript moments "
-    "(each with a turn index and quote) flagged by detectors. Rewrite each into one "
-    "short, constructive, specific coaching tip tied to its turn. Do not invent "
-    "moments and do not claim what the client would have done. Return ONLY a JSON "
-    "array of strings, one per input moment, in the same order."
-)
 
 
 @dataclass
@@ -75,34 +66,15 @@ def _detect(meeting: Meeting, scorer: SentimentScorer, cfg: config.CoachingConfi
     return notes
 
 
-def _phrase_with_llm(notes: list[CoachingNote], llm) -> list[CoachingNote]:
-    payload = [{"turn": n.evidence_turn, "kind": n.kind, "quote": n.evidence_text} for n in notes]
-    raw = llm.complete(LLM_SYSTEM, json.dumps(payload), max_tokens=600).strip()
-    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    try:
-        tips = json.loads(raw)
-    except (json.JSONDecodeError, ValueError):
-        return notes
-    if isinstance(tips, list) and len(tips) == len(notes):
-        for note, tip in zip(notes, tips):
-            note.suggestion = str(tip).strip()
-    return notes
-
-
 def assert_grounded(report: CoachingReport) -> None:
     for note in report.notes:
         if note.evidence_turn is None or note.evidence_turn < 0:
             raise ValueError(f"Ungrounded coaching note: {note.kind}")
 
 
-def coach_meeting(meeting: Meeting, scorer: SentimentScorer | None = None, llm=None,
+def coach_meeting(meeting: Meeting, scorer: SentimentScorer | None = None,
                   cfg: config.CoachingConfig = config.CoachingConfig()) -> CoachingReport:
     scorer = scorer or SentimentScorer()
-    notes = _detect(meeting, scorer, cfg)
-    method = "rule_based"
-    if llm is not None and notes:
-        notes = _phrase_with_llm(notes, llm)
-        method = "llm_phrased"
-    report = CoachingReport(notes=notes, method=method)
+    report = CoachingReport(notes=_detect(meeting, scorer, cfg))
     assert_grounded(report)
     return report

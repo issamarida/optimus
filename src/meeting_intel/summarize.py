@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass, field
 
@@ -15,13 +14,6 @@ ACTION_CUES = ("will ", "i'll ", "we'll ", "follow up", "send ", "action", "by n
 DECISION_CUES = ("decided", "agreed", "we'll go with", "final", "approved", "confirm")
 ISSUE_CUES = ("problem", "issue", "blocked", "concern", "delay", "risk", "outage", "frustrat")
 SENTENCE_SPLIT = re.compile(r"(?<=[.?!])\s+")
-
-LLM_SYSTEM = (
-    "You summarise corporate client meetings for a manager. Be faithful to the "
-    "transcript and never invent facts. Respond with ONLY a JSON object with keys "
-    "summary (string, <=120 words), decisions (string[]), action_items (string[]), "
-    "issues (string[])."
-)
 
 
 @dataclass
@@ -63,7 +55,7 @@ def _top_central(sentences: list[str], k: int) -> list[str]:
     return [sentences[i] for i in top]
 
 
-def _extractive(meeting: Meeting, cfg: config.SummaryConfig) -> MeetingSummary:
+def summarize_meeting(meeting: Meeting, cfg: config.SummaryConfig = config.SummaryConfig()) -> MeetingSummary:
     sentences = _sentences(meeting)
     if not sentences:
         return MeetingSummary(summary="(empty transcript)")
@@ -72,27 +64,4 @@ def _extractive(meeting: Meeting, cfg: config.SummaryConfig) -> MeetingSummary:
         decisions=_cue_hits(sentences, DECISION_CUES),
         action_items=_cue_hits(sentences, ACTION_CUES),
         issues=_cue_hits(sentences, ISSUE_CUES),
-        method="extractive",
     )
-
-
-def _abstractive(meeting: Meeting, llm, cfg: config.SummaryConfig) -> MeetingSummary:
-    transcript = "\n".join(meeting.transcript_lines())
-    raw = llm.complete(LLM_SYSTEM, f"Transcript:\n{transcript}", max_tokens=cfg.llm_max_tokens)
-    raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return _extractive(meeting, cfg)
-    return MeetingSummary(
-        summary=str(data.get("summary", "")).strip(),
-        decisions=list(data.get("decisions", []))[:8],
-        action_items=list(data.get("action_items", []))[:8],
-        issues=list(data.get("issues", []))[:8],
-        method="abstractive_llm",
-    )
-
-
-def summarize_meeting(meeting: Meeting, llm=None,
-                      cfg: config.SummaryConfig = config.SummaryConfig()) -> MeetingSummary:
-    return _abstractive(meeting, llm, cfg) if llm is not None else _extractive(meeting, cfg)

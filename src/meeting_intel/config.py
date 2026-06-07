@@ -2,20 +2,15 @@ from dataclasses import dataclass
 
 RANDOM_SEED = 7
 
-GROUP_COL = "meeting_id"
-TEXT_FULL = "full_text"
-TEXT_CLIENT = "client_text"
-TARGET_CATEGORY = "category"
+GROUP_COL = "series"
+SEG_TEXT = "text"
+TARGET_DA = "da_label"
 TARGET_SENTIMENT = "sentiment"
 MEETING_OBJ = "_meeting"
 
-NUMERIC_FEATURES = [
-    "client_turn_share",
-    "client_token_share",
-    "question_rate",
-    "mean_turn_tokens",
-    "n_turns",
-]
+SEG_NUMERIC = ["n_tokens", "is_question"]
+
+AMI_ROOT = "data/ami_public_manual_1.6.2"
 
 POSITIVE = "positive"
 NEGATIVE = "negative"
@@ -30,12 +25,22 @@ class SplitConfig:
 
 
 @dataclass(frozen=True)
-class CategoryModelConfig:
+class DAModelConfig:
     ngram_max: int = 2
-    min_df: int = 2
+    min_df: int = 3
     max_df: float = 0.9
-    C: float = 4.0
+    C: float = 2.0
     max_iter: int = 2000
+
+
+@dataclass(frozen=True)
+class BertConfig:
+    model_name: str = "bert-base-uncased"
+    max_length: int = 64
+    batch_size: int = 32
+    epochs: int = 3
+    learning_rate: float = 2e-5
+    output_dir: str = "artifacts/bert-da"
 
 
 @dataclass(frozen=True)
@@ -54,7 +59,6 @@ class CoachingConfig:
 @dataclass(frozen=True)
 class SummaryConfig:
     max_sentences: int = 4
-    llm_max_tokens: int = 700
 
 
 @dataclass(frozen=True)

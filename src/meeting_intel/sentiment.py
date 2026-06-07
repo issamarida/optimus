@@ -41,14 +41,9 @@ def negative_share_by_meeting(meetings: list[Meeting], scorer: SentimentScorer) 
     rows = [(m.meeting_id, u.text) for m in meetings for u in m.utterances if u.role == ROLE_CLIENT]
     if not rows:
         return pd.Series(dtype=float)
-    df = pd.DataFrame(rows, columns=[config.GROUP_COL, "text"])
+    df = pd.DataFrame(rows, columns=["meeting_id", "text"])
     df["is_negative"] = pd.Series(scorer.predict(df["text"].tolist())) == config.NEGATIVE
-    return df.groupby(config.GROUP_COL)["is_negative"].mean()
-
-
-def aligned_negative_share(frame: pd.DataFrame, scorer: SentimentScorer):
-    shares = negative_share_by_meeting(frame[config.MEETING_OBJ].tolist(), scorer)
-    return shares.reindex(frame[config.GROUP_COL]).fillna(0.0).to_numpy()
+    return df.groupby("meeting_id")["is_negative"].mean()
 
 
 def validate_domain_shift(scorer: SentimentScorer, texts, gold_labels) -> dict:

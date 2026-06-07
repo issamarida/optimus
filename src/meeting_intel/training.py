@@ -6,21 +6,20 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 from . import config
-from .preprocessing import build_preprocessor
+from .preprocessing import build_da_preprocessor
 
 
-def build_category_pipeline(cfg: config.CategoryModelConfig = config.CategoryModelConfig()) -> Pipeline:
+def build_da_pipeline(cfg: config.DAModelConfig = config.DAModelConfig()) -> Pipeline:
     return Pipeline([
-        ("features", build_preprocessor(cfg)),
+        ("features", build_da_preprocessor(cfg)),
         ("clf", LogisticRegression(max_iter=cfg.max_iter, C=cfg.C, class_weight="balanced")),
     ])
 
 
-def fit_category(train_df: pd.DataFrame, cfg: config.CategoryModelConfig = config.CategoryModelConfig()) -> Pipeline:
-    return build_category_pipeline(cfg).fit(train_df, train_df[config.TARGET_CATEGORY])
+def fit_da(train_df: pd.DataFrame, cfg: config.DAModelConfig = config.DAModelConfig()) -> Pipeline:
+    return build_da_pipeline(cfg).fit(train_df, train_df[config.TARGET_DA])
 
 
 def fit_baseline(train_df: pd.DataFrame) -> DummyClassifier:
     return DummyClassifier(strategy="most_frequent").fit(
-        train_df[config.NUMERIC_FEATURES], train_df[config.TARGET_CATEGORY]
-    )
+        train_df[config.SEG_NUMERIC], train_df[config.TARGET_DA])

@@ -57,3 +57,19 @@ def evaluate_summaries(predicted: list[str], references: list[str]) -> dict:
         for k in keys:
             scores[k].append(result[k].fmeasure)
     return {k: round(float(np.mean(v)), 3) for k, v in scores.items()}
+
+
+def evaluate_summarization(predicted: dict[str, str], references: dict[str, str]) -> dict:
+    try:
+        from rouge_score import rouge_scorer
+    except ImportError:
+        return {"error": "pip install rouge-score"}
+    keys = ("rouge1", "rouge2", "rougeL")
+    scorer = rouge_scorer.RougeScorer(list(keys), use_stemmer=True)
+    agg = {k: [] for k in keys}
+    common = [m for m in predicted if m in references]
+    for m in common:
+        result = scorer.score(references[m], predicted[m])
+        for k in keys:
+            agg[k].append(result[k].fmeasure)
+    return {"n_meetings": len(common), **{k: round(sum(v) / len(v), 3) for k, v in agg.items() if v}}

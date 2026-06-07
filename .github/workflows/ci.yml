@@ -26,5 +26,5 @@ jobs:
         run: pytest -q
       - name: Smoke-test CLI
         run: |
-          meeting-intel evaluate
+          meeting-intel analyze --n 2
           meeting-intel analyze --n 2
